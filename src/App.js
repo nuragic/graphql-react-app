@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "react-query";
+import React, { useState } from "react";
+import { useQuery, useMutation, useSubscription } from "graphql-hooks";
 
 import "./App.css";
 
@@ -23,30 +23,12 @@ const ON_RESULT_CHANGE = `subscription OnResultChange {
   }
 }`;
 
-export default function App({ mutationFn, useSubscription }) {
-  const queryClient = useQueryClient();
+export default function App() {
+  const { isLoading, data, refetch } = useQuery(RESULT);
 
-  const { isLoading, data } = useQuery([RESULT], {
-    notifyOnChangeProps: ["data", "error"],
-  });
+  const [addMutation] = useMutation(ADD);
 
-  const addMutation = useMutation(
-    (variables) => mutationFn({ query: ADD, variables }),
-    {
-      onSuccess: ({ data }) => {
-        queryClient.setQueryData([RESULT], { result: data.add });
-      },
-    }
-  );
-
-  const subtractMutation = useMutation(
-    (variables) => mutationFn({ query: SUBTRACT, variables }),
-    {
-      onSuccess: ({ data }) => {
-        queryClient.setQueryData([RESULT], { result: data.subtract });
-      },
-    }
-  );
+  const [subtractMutation] = useMutation(SUBTRACT);
 
   const [resultState, setResultState] = useState({
     operation: "",
@@ -63,10 +45,8 @@ export default function App({ mutationFn, useSubscription }) {
         console.log(errors[0]);
       }
       if (onResultChange) {
-        queryClient.setQueryData([RESULT], {
-          result: onResultChange.current,
-        });
         setResultState(onResultChange);
+        refetch();
       }
     }
   );
@@ -79,20 +59,20 @@ export default function App({ mutationFn, useSubscription }) {
       <div className="buttons">
         <button
           onClick={() => {
-            return subtractMutation.mutate({ num: 1 });
+            return subtractMutation({ variables: { num: 1 } });
           }}
         >
           -
         </button>
         <button
           onClick={() => {
-            return addMutation.mutate({ num: 1 });
+            return addMutation({ variables: { num: 1 } });
           }}
         >
           +
         </button>
       </div>
-      <code>{JSON.stringify(resultState)}</code>
+      <pre>{JSON.stringify(resultState, null, 2)}</pre>
     </div>
   );
 }
